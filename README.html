@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> 
+  <title>Cloudy9 菜单</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      font-family: sans-serif;
+      background-color: #000;
+    }
+
+    .page-container {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+      transform-style: preserve-3d;
+    }
+
+    /* 主要修改点：
+       1. 将 height 改为 min-height，允许内容撑开高度
+       2. 添加 overflow-y: auto 允许垂直滚动
+       3. 优化背景图显示方式，使用 contain 避免裁剪 */
+    .page {
+      width: 100vw;
+      min-height: 100vh;        /* 允许内容超过视口高度 */
+      background-size: contain; /* 保持图片比例，完整显示 */
+      background-position: top center;
+      background-repeat: no-repeat;
+      transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+      position: absolute;
+      top: 0;
+      left: 0;
+      overflow-y: auto;         /* 启用垂直滚动条 */
+      -webkit-overflow-scrolling: touch; /* 优化移动端滚动体验 */
+    }
+
+    /* 滚动提示指示器 */
+    .scroll-indicator {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      background-color: rgba(0,0,0,0.5);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      animation: bounce 2s infinite;
+      z-index: 1000;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0) translateX(-50%); }
+      40% { transform: translateY(-10px) translateX(-50%); }
+      60% { transform: translateY(-5px) translateX(-50%); }
+    }
+
+    .floating-nav {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 999;
+    }
+    .floating-nav a {
+      display: block;
+      width: 12px;
+      height: 12px;
+      background-color: #fff;
+      border-radius: 50%;
+      margin: 10px 0;
+      opacity: 0.6;
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+    .floating-nav a:hover {
+      opacity: 1;
+    }
+    .floating-nav a.active {
+      opacity: 1;
+      background-color: #ff0;
+    }
+  </style>
+</head>
+<body>
+  <div class="floating-nav" id="nav">
+    <a data-index="0" class="active"></a>
+    <a data-index="1"></a>
+    <a data-index="2"></a>
+    <a data-index="3"></a>
+    <a data-index="4"></a>
+  </div>
+
+  <!-- 滚动提示 -->
+  <div class="scroll-indicator">向下滚动查看完整内容</div>
+
+  <div class="page-container" id="container">
+    <section class="page" style="background-image: url('menu1.jpg')"></section>
+    <section class="page" style="background-image: url('menu2.jpg')"></section>
+    <section class="page" style="background-image: url('menu3.jpg')"></section>
+    <section class="page" style="background-image: url('menu4.jpg')"></section>
+    <section class="page" style="background-image: url('menu5.jpg')"></section>
+  </div>
+
+  <script>
+    const container = document.getElementById('container');
+    const pages = document.querySelectorAll('.page');
+    const navLinks = document.querySelectorAll('.floating-nav a');
+    const scrollIndicator = document.querySelector('.scroll-indicator');
+
+    let currentIndex = 0;
+    const totalPages = pages.length;
+    let isScrolling = false; // 防止滚动和翻页冲突
+
+    // 翻页函数
+    function goToPage(index) {
+      if (isScrolling) return;
+      
+      if (index < 0) index = 0;
+      if (index >= totalPages) index = totalPages - 1;
+
+      container.style.transform = `translateX(-${index * 100}vw)`;
+
+      navLinks.forEach((link, i) => {
+        link.classList.remove('active');
+        if (i === index) link.classList.add('active');
+      });
+
+      currentIndex = index;
+    }
+
+    goToPage(0);
+
+    // 鼠标滚轮事件：判断是水平翻页还是垂直滚动
+    container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      
+      // 获取当前页面
+      const currentPage = pages[currentIndex];
+      
+      // 判断是否在页面顶部或底部
+      const isAtTop = currentPage.scrollTop === 0;
+      const isAtBottom = currentPage.scrollTop + currentPage.clientHeight >= currentPage.scrollHeight;
+      
+      // 如果在顶部且向上滚，或者在底部且向下滚，则翻页
+      if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
+        const direction = e.deltaY > 0 ? 1 : -1;
+        goToPage(currentIndex + direction);
+      } else {
+        // 否则在当前页面内滚动
+        currentPage.scrollTop += e.deltaY;
+      }
+    });
+
+    // 导航点击事件
+    navLinks.forEach((link) => {
+      link.addEventListener('click', () => {
+        const index = parseInt(link.getAttribute('data-index'));
+        goToPage(index);
+      });
+    });
+
+    // 触摸事件处理
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+
+    container.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+    });
+
+    container.addEventListener('touchend', (e) => {
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const diffX = touchEndX - touchStartX;
+      const diffY = touchEndY - touchStartY;
+      const touchDuration = Date.now() - touchStartTime;
+      
+      const currentPage = pages[currentIndex];
+      const isAtTop = currentPage.scrollTop === 0;
+      const isAtBottom = currentPage.scrollTop + currentPage.clientHeight >= currentPage.scrollHeight;
+      
+      // 快速滑动时优先处理翻页
+      if (touchDuration < 300) {
+        // 横向滑动距离大于纵向，且超过阈值，则翻页
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+          goToPage(currentIndex + (diffX > 0 ? -1 : 1));
+          return;
+        }
+      }
+      
+      // 常规滑动：判断是垂直滚动还是水平翻页
+      if (Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+        // 水平滑动为主，翻页
+        if (diffX > 50) goToPage(currentIndex - 1);
+        else if (diffX < -50) goToPage(currentIndex + 1);
+      } else {
+        // 垂直滑动为主，判断是否在顶部或底部
+        if ((isAtTop && diffY > 0) || (isAtBottom && diffY < 0)) {
+          goToPage(currentIndex + (diffY > 0 ? -1 : 1));
+        }
+      }
+    });
+
+    // 显示/隐藏滚动提示
+    window.addEventListener('scroll', () => {
+      // 滚动时隐藏提示
+      scrollIndicator.style.opacity = '0';
+      setTimeout(() => {
+        // 停止滚动后显示提示
+        scrollIndicator.style.opacity = '1';
+      }, 2000);
+    });
+  </script>
+</body>
+</html>
